@@ -45,46 +45,28 @@ The **NSFW Detector & Annotator** is a tool designed to classify images into cat
 
 The project is organized as follows:
 
+```
 nsfw-detector-annotator/
-\
 ├── models/
-\
 │   ├── classification_model.pt
-\
 │   └── segmentation_model.pt
-\
 ├── scripts/
-\
 │   ├── train_classification.py
-\
 │   └── train_segmentation.py
-\
 ├── images/
-\
 │   ├── classification/
-\
-│&emsp;├── confusion_matrix.png
-\
-│&emsp;└── confusion_matrix_normalized.png
-\
+│   ├── confusion_matrix.png
+│   └── confusion_matrix_normalized.png
 │   └── segmentation/
-\
-│&emsp;├── confusion_matrix.png
-\
-│&emsp;└── confusion_matrix_normalized.png
-\
+│   ├── confusion_matrix.png
+│   └── confusion_matrix_normalized.png
 ├── app/
-\
 │   ├── app.py
-\
 │   ├── admin.py
-\
 │   └── utils.py
-\
 ├── requirements.txt
-\
 └── README.md
-
+```
 
 ---
 
@@ -221,7 +203,6 @@ LSPD dataset:
     issue = {1},
     pages = {198--231}
 }
-
 ```
 Model used (YOLO11):
 ```
