@@ -2,13 +2,9 @@ import streamlit as st
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
 from PIL import Image, ImageFilter
-import json
 import os
-
-# File to store feedbacks
-FEEDBACK_FILE = "feedbacks.json"
-
-save_files_to_disk = True
+from utils import save_feedbacks, load_feedbacks
+from admin import admin_panel
 
 # Directory to save uploaded images
 UPLOAD_DIR = "uploaded_images"
@@ -106,21 +102,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Function to save feedbacks to file
-def save_feedbacks(feedbacks):
-    with open(FEEDBACK_FILE, "w") as file:
-        json.dump(feedbacks, file, indent=4)
-
-# Function to load feedbacks from file
-def load_feedbacks():
-    if os.path.exists(FEEDBACK_FILE):
-        with open(FEEDBACK_FILE, "r") as file:
-            return json.load(file)
-    return []
-
-# Load existing feedbacks
-feedbacks = load_feedbacks()
-
 @st.cache_resource(ttl=24*3600)  # Cache models to save on resources
 def load_models():
     classification_model = YOLO('models/classification_model.pt')
@@ -146,10 +127,9 @@ if uploaded_file is not None:
         )
 
     # Save uploaded images to local disk only if enabled, otherwise continue
-    if save_files_to_disk:
-        file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+    file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
 
     image = Image.open(uploaded_file)
     left_co, cent_co,last_co = st.columns(3)
@@ -232,6 +212,7 @@ with st.form(key='feedback_form'):
                 "rating": rating
             }
             
+            feedbacks = load_feedbacks()
             feedbacks.append(new_feedback)
             save_feedbacks(feedbacks)
             st.success('Thanks for your feedback!')
@@ -240,46 +221,5 @@ with st.form(key='feedback_form'):
 
 st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used re-training. However, the user remains anonymous.")
 
-# Admin Panel
-st.markdown("---")
-st.header("Admin Panel")
-
-admin_password = st.text_input("Enter Admin Password", type="password")
-correct_password = st.secrets["admin_password"]
-
-if admin_password == correct_password:
-    st.success("Admin access granted.")
-
-    if os.path.exists(UPLOAD_DIR) and os.listdir(UPLOAD_DIR):
-        import zipfile
-        from io import BytesIO
-
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for root, _, files in os.walk(UPLOAD_DIR):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    zip_file.write(file_path, os.path.relpath(file_path, UPLOAD_DIR))
-
-        st.download_button(
-            label="Download Uploaded Images (ZIP)",
-            data=zip_buffer.getvalue(),
-            file_name="uploaded_images.zip",
-            mime="application/zip"
-        )
-    else:
-        st.warning("No uploaded images found.")
-
-    if os.path.exists(FEEDBACK_FILE):
-        with open(FEEDBACK_FILE, "rb") as file:
-            st.download_button(
-                label="Download Feedback Data (JSON)",
-                data=file,
-                file_name="feedbacks.json",
-                mime="application/json"
-            )
-    else:
-        st.warning("No feedback data found.")
-else:
-    if admin_password:
-        st.error("Incorrect password. Access denied.")
+# Call the admin panel
+admin_panel()

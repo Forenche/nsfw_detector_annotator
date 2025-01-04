@@ -57,9 +57,7 @@ nsfw-detector-annotator/
 \
 │   ├── train_classification.py
 \
-│   ├── train_segmentation.py
-\
-│   └── validate_models.py
+│   └── train_segmentation.py
 \
 ├── images/
 \
@@ -75,7 +73,13 @@ nsfw-detector-annotator/
 \
 │&emsp;└── confusion_matrix_normalized.png
 \
-├── app.py
+├── app/
+\
+│   ├── app.py
+\
+│   ├── admin.py
+\
+│   └── utils.py
 \
 ├── requirements.txt
 \
