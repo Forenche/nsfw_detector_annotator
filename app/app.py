@@ -223,3 +223,7 @@ st.markdown("ℹ️ Please note that I collect uploaded images for further analy
 
 # Call the admin panel
 admin_panel()
+
+# A small button to link to the Github repo
+st.write("---")
+st.link_button("🐙 View on GitHub", "https://github.com/Forenche/nsfw_detector_annotator")
