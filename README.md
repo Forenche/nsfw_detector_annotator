@@ -182,7 +182,7 @@ Contributions are more than welcome! How to contribute?
 
 2. **Clone Your Fork**:
     ```bash
-    git clone https://github.com/your-username/nsfw-detector-annotator.git
+    git clone https://github.com/<your-username>/nsfw_detector_annotator.git
 
 3.  **Create a branch**:
     ```bash
