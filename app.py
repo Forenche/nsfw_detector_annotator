@@ -239,3 +239,47 @@ with st.form(key='feedback_form'):
             st.warning('Please fill out all fields.')
 
 st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used re-training. However, the user remains anonymous.")
+
+# Admin Panel
+st.markdown("---")
+st.header("Admin Panel")
+
+admin_password = st.text_input("Enter Admin Password", type="password")
+correct_password = st.secrets["admin_password"]
+
+if admin_password == correct_password:
+    st.success("Admin access granted.")
+
+    if os.path.exists(UPLOAD_DIR) and os.listdir(UPLOAD_DIR):
+        import zipfile
+        from io import BytesIO
+
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for root, _, files in os.walk(UPLOAD_DIR):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zip_file.write(file_path, os.path.relpath(file_path, UPLOAD_DIR))
+
+        st.download_button(
+            label="Download Uploaded Images (ZIP)",
+            data=zip_buffer.getvalue(),
+            file_name="uploaded_images.zip",
+            mime="application/zip"
+        )
+    else:
+        st.warning("No uploaded images found.")
+
+    if os.path.exists(FEEDBACK_FILE):
+        with open(FEEDBACK_FILE, "rb") as file:
+            st.download_button(
+                label="Download Feedback Data (JSON)",
+                data=file,
+                file_name="feedbacks.json",
+                mime="application/json"
+            )
+    else:
+        st.warning("No feedback data found.")
+else:
+    if admin_password:
+        st.error("Incorrect password. Access denied.")
