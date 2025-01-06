@@ -232,5 +232,5 @@ admin_panel()
 
 # A small button to link to the Github repo
 st.write("---")
-st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used re-training. However, the user remains anonymous.")
+st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used for re-training. However, the user remains anonymous.")
 st.link_button("🐙 View on GitHub", "https://github.com/Forenche/nsfw_detector_annotator")
