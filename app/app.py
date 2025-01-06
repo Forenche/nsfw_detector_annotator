@@ -3,8 +3,12 @@ from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
 from PIL import Image, ImageFilter
 import os
+from pillow_heif import register_heif_opener
 from utils import save_feedbacks, load_feedbacks
 from admin import admin_panel
+
+# Enable support for HEIC images
+register_heif_opener()
 
 # Directory to save uploaded images
 UPLOAD_DIR = "uploaded_images"
@@ -119,8 +123,10 @@ uploaded_file = st.file_uploader("📁 Choose an image...", type=["bmp", "dng", 
 if uploaded_file is not None:
 
     # Check if the uploaded file type is supported
-    supported_formats = ["bmp", "dng", "jpg", "jpeg", "mpo", "png", "tif", "tiff", "webp", "pfm", "HEIC"]
-    if uploaded_file.type.split("/")[-1].lower() not in supported_formats:
+    supported_formats = ["bmp", "dng", "jpg", "jpeg", "mpo", "png", "tif", "tiff", "webp", "pfm", "heic"]
+    file_extension = os.path.splitext(uploaded_file.name)[1].lower().replace(".", "")
+    print(f'Uploaded file format: {file_extension}')
+    if file_extension not in supported_formats:
         st.warning(
             f"⚠️ Unsupported file type. Please upload one of the following formats: "
             f"{', '.join(supported_formats)}."
@@ -197,8 +203,10 @@ if uploaded_file is not None:
 
 st.markdown("---")
 st.markdown("ℹ️ **Instructions:** Upload an image to classify and detect explicit content. Use the slider to adjust the blur intensity.")
+st.write("---")
 
-with st.form(key='feedback_form'):
+st.markdown("#### Feedback Form")
+with st.form(key='feedback_form', clear_on_submit=True):
     name = st.text_input('Name')
     feedback = st.text_area('💬Feedback')
     rating = st.selectbox('Rating', ['Excellent', 'Good', 'Average', 'Poor'])
@@ -219,11 +227,10 @@ with st.form(key='feedback_form'):
         else:
             st.warning('Please fill out all fields.')
 
-st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used re-training. However, the user remains anonymous.")
-
 # Call the admin panel
 admin_panel()
 
 # A small button to link to the Github repo
 st.write("---")
+st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used re-training. However, the user remains anonymous.")
 st.link_button("🐙 View on GitHub", "https://github.com/Forenche/nsfw_detector_annotator")

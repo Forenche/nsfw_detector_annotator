@@ -45,7 +45,7 @@ def download_all_data():
 
 def admin_panel():
     st.markdown("---")
-    st.header("Admin Panel")
+    st.markdown("#### Admin Panel")
 
     admin_password = st.text_input("Enter Admin Password", type="password")
     correct_password = st.secrets["admin_password"]  # Access password from secrets
