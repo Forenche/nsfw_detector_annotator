@@ -28,7 +28,7 @@ A Streamlit-based web application for detecting, classifying, and blurring expli
 
 ## Overview
 
-The **NSFW Detector & Annotator** is a tool designed to classify images into categories such as `drawing`, `hentai`, `normal`, `porn`, and `sexy`. It also detects explicit regions in images and allows users to blur them for moderation purposes. The app is built using **Streamlit** and leverages **YOLO (You Only Look Once)** models for classification and segmentation.
+The **NSFW Detector & Annotator** is a tool designed to classify images into categories such as `drawing`, `hentai`, `normal`, `porn`, and `sexy`. It also detects explicit regions in images and allows users to blur them for moderation purposes. The app is built using **Streamlit** and leverages **YOLO (You Only Look Once)** models for classification and segmentation. Support for videos has been added wherein the user can upload a videa and the model will process it and return the annotated video once done.
 
 ---
 
@@ -37,6 +37,7 @@ The **NSFW Detector & Annotator** is a tool designed to classify images into cat
 - **Image Classification**: Classifies images into 5 categories: `drawing`, `hentai`, `normal`, `porn`, and `sexy`.
 - **Explicit Region Detection**: Identifies explicit regions within images by utilizing a segmentation model trained to detect areas such as `breast`, `anus`, `female_genital`, and `male_genital`.
 - **Blurring**: Allows users to blur detected explicit regions with adjustable blur intensity.
+- **Video Moderation**: Identifies and blurs explicit regions in each frame.
 - **Interactive UI**: Built with Streamlit for a user-friendly and interactive experience.
 
 ---
@@ -95,15 +96,17 @@ nsfw-detector-annotator/
     ```bash
     streamlit run app/app.py
 
-2. **Upload an Image**:
+2. **Upload Image(s) or Videos**:
     
-    * Use the file uploader to upload an image.
+    * Use the file uploader to upload a batch of images or a single image.
+    * Switch to video mode and use the file uploader to upload a video to blur explicit regions.
 
 3. **View Results**:
 
     * The app will classify the image and display the result.
     * If the image is classified as `porn` or `hentai`, explicit regions will be detected and can be blurred.
     * Use the "Blur NSFW Regions" checkbox to toggle blurring on the detected regions.
+    * The video will have the explicit regions blurred out once processed.
 
 4. **Adjust Blur Intensity**:
 
