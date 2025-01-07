@@ -148,7 +148,7 @@ For the segmentation model:
 - [ ] **Model enhancements**:
     * Higher accuracy for segmentation and better generalization for classification model.
 
-- [ ] **Real Time Video classification and Segmentation**:
+- :hammer: **Real Time Video classification and Segmentation [WIP]**:
     * Support for videos and classify it frame by frame in real time and segment explicit regions without dropping frames.
 
 - [ ] **Move away from streamlit to custom website**:
