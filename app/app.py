@@ -6,11 +6,15 @@ from PIL import Image, ImageFilter
 import os
 import cv2
 from pillow_heif import register_heif_opener
+import utils
 from utils import save_feedbacks, load_feedbacks
 from admin import admin_panel
 
 # Enable support for HEIC images
 register_heif_opener()
+
+# Set theme and page layout
+utils.set_page_configs()
 
 # Directory to save uploaded images
 media_dir_root = "uploaded_media"
@@ -21,95 +25,6 @@ video_dir = f'{media_dir_root}/videos'
 os.makedirs(image_dir, exist_ok=True)
 os.makedirs(video_dir, exist_ok=True)
 
-st.set_page_config(page_title='NSFW Detector & Annotator', page_icon=':peach:', layout="wide", initial_sidebar_state="auto", menu_items=None)
-
-st.markdown(
-    """
-    <script>
-    function isPhone() {
-        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    }
-
-    // Set layout to 'centered' if the user is on a phone
-    if (isPhone()) {
-        document.body.classList.add('phone-layout');
-    }
-    </script>
-    <style>
-    /* Apply these styles only when light mode is active */
-        @media (prefers-color-scheme: light) {
-        .stApp {
-            background-color: #ECEFF4;  /* Nord6: Snow Storm */
-            color: #2E3440;            /* Nord0: Polar Night */
-            font-family: 'Inter', sans-serif;
-        }
-
-        /* Headers and titles */
-        h1, h2, h3, h4, h5, h6 {
-            color: #2E3440;            /* Nord0: Polar Night */
-            font-weight: 600;
-        }
-
-        /* Buttons */
-        .stButton>button {
-            background-color: #81A1C1; /* Nord9: Frost */
-            color: #ECEFF4;            /* Nord6: Snow Storm */
-            border-radius: 8px;
-            border: none;
-            padding: 10px 20px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .stButton>button:hover {
-            background-color: #5E81AC; /* Nord10: Frost */
-            color: #ECEFF4;            /* Nord6: Snow Storm */
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        /* File uploader */
-        .stFileUploader>div>div>button {
-            background-color: #E5E9F0; /* Nord5: Snow Storm */
-            color: #2E3440;            /* Nord0: Polar Night */
-            border-radius: 8px;
-            border: 1px solid #D8DEE9; /* Nord4: Snow Storm */
-            padding: 8px 12px;
-        }
-
-        /* Sliders */
-        .stSlider>div>div>div>div {
-            background-color: #81A1C1; /* Nord9: Frost */
-            border-radius: 8px;
-        }
-
-        /* Checkboxes */
-        .stCheckbox>label {
-            color: #2E3440;            /* Nord0: Polar Night */
-            font-weight: 500;
-        }
-
-        /* Images */
-        .stImage>img {
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .stImage>img:hover {
-            transform: scale(1.02);
-        }
-
-        /* Spacing and layout */
-        .stMarkdown {
-            margin-bottom: 1.5rem;
-        }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 @st.cache_resource(ttl=24*3600)  # Cache models to save on resources
 def load_models():
     classification_model = YOLO('models/classification_model.pt')
@@ -117,10 +32,6 @@ def load_models():
     return classification_model, segmentation_model
 
 classification_model, segmentation_model = load_models()
-
-st.title("NSFW Detection Tool for Images and Videos")
-st.header("Upload images or videos to classify, detect, and blur explicit content.")
-st.write("Detects and classifies content under these 5 classes: drawing, hentai, normal, porn, and sexy.")
 
 # Session state to track image navigation
 if "image_index" not in st.session_state:
@@ -312,7 +223,7 @@ else:
                     }
 
             if category == 'porn' or category == 'hentai':
-                if st.checkbox("Blur NSFW Regions"):
+                if st.checkbox("Blur explicit regions", True):
                     left_co, cent_co, last_co = st.columns(3)
                     with cent_co:
                         st.image(image_with_blur, caption="Image with Blurred NSFW Regions", use_container_width=True)
