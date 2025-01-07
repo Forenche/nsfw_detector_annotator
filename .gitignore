@@ -1,5 +1,5 @@
 # Ignore run time generated artifacts
-uploaded_images/
+uploaded_media/
 feedbacks.json
 
 # Ignore pycache

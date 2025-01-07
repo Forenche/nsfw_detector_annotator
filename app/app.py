@@ -1,8 +1,10 @@
+import tempfile
 import streamlit as st
 from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
 from PIL import Image, ImageFilter
 import os
+import cv2
 from pillow_heif import register_heif_opener
 from utils import save_feedbacks, load_feedbacks
 from admin import admin_panel
@@ -11,11 +13,13 @@ from admin import admin_panel
 register_heif_opener()
 
 # Directory to save uploaded images
-UPLOAD_DIR = "uploaded_images"
+media_dir_root = "uploaded_media"
+image_dir = f'{media_dir_root}/images'
+video_dir = f'{media_dir_root}/videos'
 
-# Create the directory if it doesn't exist
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+# Make sure the dirs exist
+os.makedirs(image_dir, exist_ok=True)
+os.makedirs(video_dir, exist_ok=True)
 
 st.set_page_config(page_title='NSFW Detector & Annotator', page_icon=':peach:', layout="wide", initial_sidebar_state="auto", menu_items=None)
 
@@ -114,95 +118,154 @@ def load_models():
 
 classification_model, segmentation_model = load_models()
 
-st.title("NSFW Detection Tool for Images")
-st.header("Upload images to classify, detect and blur explicit content.")
-st.write("Detects and classifies images under these 5 classes:\n drawing, hentai, normal, porn and sexy respectively.")
+st.title("NSFW Detection Tool for Images and Videos")
+st.header("Upload images or videos to classify, detect, and blur explicit content.")
+st.write("Detects and classifies content under these 5 classes: drawing, hentai, normal, porn, and sexy.")
 
-uploaded_file = st.file_uploader("📁 Choose an image...", type=["bmp", "dng", "jpg", "jpeg", "mpo", "png", "tif", "tiff", "webp", "pfm", "HEIC"])
+# Toggle between image and video mode
+on = st.toggle("Video mode")
 
-if uploaded_file is not None:
+if on:
+    st.write("Model will segment explicit regions in videos.")
+    uploaded_file = st.file_uploader("📁 Choose a video...", type=["asf", "avi", "gif", "m4v", "mkv", "mov", "mp4", "mpeg", "mpg", "ts", "wmv", "webm"])
 
-    # Check if the uploaded file type is supported
-    supported_formats = ["bmp", "dng", "jpg", "jpeg", "mpo", "png", "tif", "tiff", "webp", "pfm", "heic"]
-    file_extension = os.path.splitext(uploaded_file.name)[1].lower().replace(".", "")
-    print(f'Uploaded file format: {file_extension}')
-    if file_extension not in supported_formats:
-        st.warning(
-            f"⚠️ Unsupported file type. Please upload one of the following formats: "
-            f"{', '.join(supported_formats)}."
-        )
+    if uploaded_file is not None:
+        # Save uploaded video to local disk
+        file_path = os.path.join(video_dir, uploaded_file.name)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-    # Save uploaded images to local disk only if enabled, otherwise continue
-    file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+        # Open the video file
+        cap = cv2.VideoCapture(file_path)
+        assert cap.isOpened(), "Error reading video file"
+        w, h, fps = (int(cap.get(x)) for x in (cv2.CAP_PROP_FRAME_WIDTH, cv2.CAP_PROP_FRAME_HEIGHT, cv2.CAP_PROP_FPS))
 
-    image = Image.open(uploaded_file)
-    left_co, cent_co,last_co = st.columns(3)
-    with cent_co:
-        st.image(image, caption="Uploaded Image", width=500)
+        # Create a temporary file to save the processed video
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+            temp_video_path = temp_file.name
 
-    with st.spinner("Classifying image..."):
-        classification_results = classification_model(image)
-        category = classification_results[0].names[classification_results[0].probs.top1]
-        st.success(f"**Classification Result:** {category}")
-        print(f"Inference information about file: {uploaded_file.name}")
+        # Video writer
+        video_writer = cv2.VideoWriter(temp_video_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
-    if category == 'porn' or category == 'hentai':
-        with st.spinner("Detecting explicit regions..."):
-            segmentation_results = segmentation_model(image,
-                                                      agnostic_nms=True, # Testing
-                                                      retina_masks=True) # Returns high-resolution segmentation masks
+        # Process video frame-by-frame
+        progress_bar = st.progress(0)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        current_frame = 0
 
-        boxes = segmentation_results[0].boxes.xyxy.cpu().tolist() # Bound boxes
-        clss = segmentation_results[0].boxes.cls.cpu().tolist() # Class value of the boxes
-        confs = segmentation_results[0].boxes.conf.cpu().tolist() # Confidence score of the classes
+        while cap.isOpened():
+            success, im0 = cap.read()
+            if not success:
+                break
 
-        """
-            Copy of the image for drawing segmentation masks
-            Prevents segmentation mask's color being picked up during the blurring process, results in a clean blur
-        """
-        image_with_boxes = image.copy()
-        image_with_blur = image.copy()
+            # Perform segmentation on the frame
+            results = segmentation_model.predict(im0, imgsz=416, show=False, agnostic_nms=True, device='cpu')
+            boxes = results[0].boxes.xyxy.cpu().tolist()
+            clss = results[0].boxes.cls.cpu().tolist()
+            annotator = Annotator(im0, line_width=2, example=segmentation_model.model.names)
 
-        annotator = Annotator(image_with_boxes, line_width=2, example=segmentation_results[0].names)
+            if boxes is not None:
+                for box, cls in zip(boxes, clss):
+                    annotator.box_label(box, color=colors(int(cls), True), label=segmentation_model.model.names[int(cls)])
 
-        for box, cls, conf in zip(boxes, clss, confs):
-            class_name = segmentation_results[0].names[int(cls)]
+                    # Blur explicit regions
+                    obj = im0[int(box[1]):int(box[3]), int(box[0]):int(box[2])]
+                    blur_obj = cv2.blur(obj, (85, 85))  # Fixed blur ratio
+                    im0[int(box[1]):int(box[3]), int(box[0]):int(box[2])] = blur_obj
 
-            label = f"{class_name} ({conf:.2f})"
-            annotator.box_label(box, color=colors(int(cls), True), label=label)
+            # Write the processed frame to the output video
+            video_writer.write(im0)
 
-        blur_ratio = st.slider("Blur Ratio", min_value=1, max_value=100, value=85)
+            # Update progress bar
+            current_frame += 1
+            progress_bar.progress(current_frame / frame_count)
 
-        # Blur explicit regions
-        for box in boxes:
-            
-            # Crop the object region
-            obj = image_with_blur.crop((int(box[0]), int(box[1]), int(box[2]), int(box[3])))
+        # Release video objects
+        cap.release()
+        video_writer.release()
 
-            # Blur it out
-            blur_obj = obj.filter(ImageFilter.GaussianBlur(radius=blur_ratio))
+        # Display the processed video
+        st.success("Video processing complete!")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        # Display the video in the middle column
+        with col2:
+            st.video(temp_video_path)
 
-            # No alpha channel please, causes weird tints over the image
-            if blur_obj.mode == 'RGBA':
-                blur_obj = blur_obj.convert('RGB')
+        # Clean up temporary file
+        os.unlink(temp_video_path)
 
-            # Overlay explicit regions with blurred out regions
-            image_with_blur.paste(blur_obj, (int(box[0]), int(box[1])))
+else:
+    st.write("Models will classify and segment explicit regions in images.")
+    uploaded_file = st.file_uploader("📁 Choose an image...", type=["bmp", "dng", "jpg", "jpeg", "mpo", "png", "tif", "tiff", "webp", "pfm", "HEIC"])
 
-        if st.checkbox("Blur NSFW Regions"):
-            left_co, cent_co,last_co = st.columns(3)
-            with cent_co:
-                st.image(image_with_blur, caption="Image with Blurred NSFW Regions", use_container_width=True)
-                
+    if uploaded_file is not None:
+        # Check if the uploaded file type is supported
+        supported_formats = ["bmp", "dng", "jpg", "jpeg", "mpo", "png", "tif", "tiff", "webp", "pfm", "heic"]
+        file_extension = os.path.splitext(uploaded_file.name)[1].lower().replace(".", "")
+        print(f'Uploaded file format: {file_extension}')
+        if file_extension not in supported_formats:
+            st.warning(
+                f"⚠️ Unsupported file type. Please upload one of the following formats: "
+                f"{', '.join(supported_formats)}."
+            )
         else:
-            left_co, cent_co,last_co = st.columns(3)
+            file_path = os.path.join(image_dir, uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+
+            image = Image.open(uploaded_file)
+            left_co, cent_co, last_co = st.columns(3)
             with cent_co:
-                st.image(image_with_boxes, caption="Image with Segmentation Masks", use_container_width=True)
+                st.image(image, caption="Uploaded Image", width=500)
+
+            with st.spinner("Classifying image..."):
+                classification_results = classification_model(image)
+                category = classification_results[0].names[classification_results[0].probs.top1]
+                st.success(f"**Classification Result:** {category}")
+                print(f"Inference information about file: {uploaded_file.name}")
+
+            if category == 'porn' or category == 'hentai':
+                with st.spinner("Detecting explicit regions..."):
+                    segmentation_results = segmentation_model(image, agnostic_nms=True, retina_masks=True)
+
+                boxes = segmentation_results[0].boxes.xyxy.cpu().tolist()
+                clss = segmentation_results[0].boxes.cls.cpu().tolist()
+                confs = segmentation_results[0].boxes.conf.cpu().tolist()
+
+                """
+                    Copy of the image for drawing segmentation masks
+                    Prevents segmentation mask's color being picked up during the blurring process, results in a clean blur
+                """
+                image_with_boxes = image.copy()
+                image_with_blur = image.copy()
+
+                annotator = Annotator(image_with_boxes, line_width=2, example=segmentation_results[0].names)
+
+                for box, cls, conf in zip(boxes, clss, confs):
+                    class_name = segmentation_results[0].names[int(cls)]
+                    label = f"{class_name} ({conf:.2f})"
+                    annotator.box_label(box, color=colors(int(cls), True), label=label)
+
+                blur_ratio = st.slider("Blur Ratio", min_value=1, max_value=100, value=85)
+
+                # Blur explicit regions
+                for box in boxes:
+                    obj = image_with_blur.crop((int(box[0]), int(box[1]), int(box[2]), int(box[3])))
+                    blur_obj = obj.filter(ImageFilter.GaussianBlur(radius=blur_ratio))
+                    if blur_obj.mode == 'RGBA':
+                        blur_obj = blur_obj.convert('RGB')
+                    image_with_blur.paste(blur_obj, (int(box[0]), int(box[1])))
+
+                if st.checkbox("Blur NSFW Regions"):
+                    left_co, cent_co, last_co = st.columns(3)
+                    with cent_co:
+                        st.image(image_with_blur, caption="Image with Blurred NSFW Regions", use_container_width=True)
+                else:
+                    left_co, cent_co, last_co = st.columns(3)
+                    with cent_co:
+                        st.image(image_with_boxes, caption="Image with Segmentation Masks", use_container_width=True)
 
 st.markdown("---")
-st.markdown("ℹ️ **Instructions:** Upload an image to classify and detect explicit content. Use the slider to adjust the blur intensity.")
+st.markdown("ℹ️ **Instructions:** Upload an image or video to classify and detect explicit content. Use the slider to adjust the blur intensity.")
 st.write("---")
 
 st.markdown("#### Feedback Form")
@@ -232,5 +295,5 @@ admin_panel()
 
 # A small button to link to the Github repo
 st.write("---")
-st.markdown("ℹ️ Please note that I collect uploaded images for further analysis and may be used for re-training. However, the user remains anonymous.")
+st.markdown("ℹ️ Please note that I collect uploaded images and videos for further analysis and may be used for re-training. However, the user remains anonymous.")
 st.link_button("🐙 View on GitHub", "https://github.com/Forenche/nsfw_detector_annotator")

@@ -2,11 +2,10 @@ import streamlit as st
 import os
 import zipfile
 from io import BytesIO
-from utils import delete_uploaded_images, delete_feedback_json, FEEDBACK_FILE, UPLOAD_DIR
+from utils import delete_uploaded_images, delete_uploaded_videos, delete_feedback_json, FEEDBACK_FILE, image_dir, video_dir
 
 def download_all_data():
-    """Download all uploaded images and feedback JSON as a single ZIP file."""
-    if not os.path.exists(UPLOAD_DIR) and not os.path.exists(FEEDBACK_FILE):
+    if not os.path.exists(image_dir) and not os.path.exists(video_dir) and not os.path.exists(FEEDBACK_FILE):
         st.warning("No data found to download.")
         return
 
@@ -14,13 +13,22 @@ def download_all_data():
     zip_buffer = BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         # Add uploaded images to the ZIP
-        if os.path.exists(UPLOAD_DIR) and os.listdir(UPLOAD_DIR):
-            for root, _, files in os.walk(UPLOAD_DIR):
+        if os.path.exists(image_dir) and os.listdir(image_dir):
+            for root, _, files in os.walk(image_dir):
                 for file in files:
                     file_path = os.path.join(root, file)
-                    zip_file.write(file_path, os.path.relpath(file_path, UPLOAD_DIR))
+                    zip_file.write(file_path, os.path.relpath(file_path, image_dir))
         else:
             st.warning("No uploaded images found to include in the ZIP.")
+
+        # Add uploaded videos to the ZIP
+        if os.path.exists(video_dir) and os.listdir(video_dir):
+            for root, _, files in os.walk(video_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zip_file.write(file_path, os.path.relpath(file_path, video_dir))
+        else:
+            st.warning("No uploaded videos found to include in the ZIP.")
 
         # Add feedback JSON to the ZIP
         if os.path.exists(FEEDBACK_FILE):
@@ -35,10 +43,13 @@ def download_all_data():
         file_name="all_data.zip",
         mime="application/zip"
     ):
-        # Delete images and feedback JSON after download
-        if os.path.exists(UPLOAD_DIR) and os.listdir(UPLOAD_DIR):
+        # Delete media and feedback JSON after download
+        if os.path.exists(image_dir) and os.listdir(image_dir):
             if delete_uploaded_images():
                 st.success("All uploaded images have been deleted.")
+        if os.path.exists(video_dir) and os.listdir(video_dir):
+            if delete_uploaded_videos():
+                st.success("All uploaded videos have been deleted.")
         if os.path.exists(FEEDBACK_FILE):
             if delete_feedback_json():
                 st.success("Feedback JSON file has been deleted.")
@@ -48,11 +59,11 @@ def admin_panel():
     st.markdown("#### Admin Panel")
 
     admin_password = st.text_input("Enter Admin Password", type="password")
-    correct_password = st.secrets["admin_password"]  # Access password from secrets
+    correct_password = st.secrets["admin_password"]
 
     if admin_password == correct_password:
         st.success("Admin access granted.")
         download_all_data()
     else:
-        if admin_password:  # Only show a warning if the user entered an incorrect password
+        if admin_password:
             st.error("Incorrect password. Access denied.")
