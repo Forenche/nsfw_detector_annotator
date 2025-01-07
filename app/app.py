@@ -4,8 +4,6 @@ from ultralytics import YOLO
 from ultralytics.utils.plotting import Annotator, colors
 from PIL import Image, ImageFilter
 import os
-import onnxruntime as ort
-import numpy as np
 import cv2
 from pillow_heif import register_heif_opener
 from utils import save_feedbacks, load_feedbacks
@@ -114,7 +112,7 @@ st.markdown(
 
 @st.cache_resource(ttl=24*3600)  # Cache models to save on resources
 def load_models():
-    classification_model = ort.InferenceSession('models/classification_model.onnx')
+    classification_model = YOLO('models/classification_model.pt')
     segmentation_model = YOLO('models/segmentation_model.pt')
     return classification_model, segmentation_model
 
@@ -123,8 +121,6 @@ classification_model, segmentation_model = load_models()
 st.title("NSFW Detection Tool for Images and Videos")
 st.header("Upload images or videos to classify, detect, and blur explicit content.")
 st.write("Detects and classifies content under these 5 classes: drawing, hentai, normal, porn, and sexy.")
-
-class_names = ['drawing', 'hentai', 'normal', 'porn', 'sexy']
 
 # Session state to track image navigation
 if "image_index" not in st.session_state:
@@ -269,17 +265,8 @@ else:
                 st.success(f"**Classification Result (Cached):** {category}")
             else:
                 with st.spinner("Classifying image..."):
-                    input_image = image.convert("RGB")
-                    input_array = np.array(input_image).astype(np.float32) / 255.0
-                    input_array = np.transpose(input_array, (2, 0, 1))  # Change from HWC to CHW format
-                    input_array = np.expand_dims(input_array, axis=0)  # Add batch dimension
-
-                    input_name = classification_model.get_inputs()[0].name
-                    output_name = classification_model.get_outputs()[0].name
-                    result = classification_model.run([output_name], {input_name: input_array})
-                    
-                    predicted_class_idx = np.argmax(result[0])
-                    category = class_names[predicted_class_idx]
+                    classification_results = classification_model(image)
+                    category = classification_results[0].names[classification_results[0].probs.top1]
 
                     st.success(f"**Classification Result:** {category}")
                     print(f"Inference information about file: {current_image_path}")
