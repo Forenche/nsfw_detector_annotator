@@ -104,6 +104,7 @@ if on:
 
         # Display the processed video
         st.success("Video processing complete!")
+        print('[DEBUG] Video processing  completed.')
         col1, col2, col3 = st.columns([1, 2, 1])
         # Display the video in the middle column
         with col2:
@@ -149,7 +150,6 @@ else:
         # Handle invalid image_index
         if st.session_state.image_index >= len(st.session_state.saved_image_paths):
             st.session_state.image_index = max(0, len(st.session_state.saved_image_paths) - 1)
-
         
         # Load the current image based on image_index
         if st.session_state.saved_image_paths:
@@ -178,7 +178,7 @@ else:
                     category = classification_results[0].names[classification_results[0].probs.top1]
 
                     st.success(f"**Classification Result:** {category}")
-                    print(f"Inference information about file: {current_image_path}")
+                    print(f"[INFO] Inference information about file: {current_image_path}")
 
             _ = """ 
                 Do not cache segmentation results, it borks website

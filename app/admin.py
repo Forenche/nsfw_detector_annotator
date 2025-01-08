@@ -62,8 +62,10 @@ def admin_panel():
     correct_password = st.secrets["admin_password"]
 
     if admin_password == correct_password:
+        print("[INFO] Access granted to admin panel.")
         st.success("Admin access granted.")
         download_all_data()
     else:
         if admin_password:
+            print("[INFO] Admin panel access denied.")
             st.error("Incorrect password. Access denied.")
