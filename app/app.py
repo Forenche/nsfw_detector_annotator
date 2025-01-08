@@ -150,14 +150,7 @@ else:
         if st.session_state.image_index >= len(st.session_state.saved_image_paths):
             st.session_state.image_index = max(0, len(st.session_state.saved_image_paths) - 1)
 
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col1:
-            if st.button("Previous") and st.session_state.image_index > 0:
-                st.session_state.image_index -= 1
-        with col3:
-            if st.button("Next") and st.session_state.image_index < len(st.session_state.saved_image_paths) - 1:
-                st.session_state.image_index += 1
-
+        
         # Load the current image based on image_index
         if st.session_state.saved_image_paths:
             current_image_path = st.session_state.saved_image_paths[st.session_state.image_index]
@@ -166,14 +159,19 @@ else:
             with cent_co:
                 st.image(image, caption=f"Image {st.session_state.image_index + 1} of {len(st.session_state.saved_image_paths)}", width=500)
 
+            col1, col2, col3 = st.columns([1, 10, 1])
+            with col1:
+                if st.button("Previous") and st.session_state.image_index > 0:
+                    st.session_state.image_index -= 1
+            with col3:
+                if st.button("Next") and st.session_state.image_index < len(st.session_state.saved_image_paths) - 1:
+                    st.session_state.image_index += 1
+
             # Display cached results if present
             if current_image_path in st.session_state.results_cache:
                 cached_results = st.session_state.results_cache[current_image_path]
                 category = cached_results["category"]
-                segmentation_results = cached_results["segmentation_results"]
-                image_with_boxes = cached_results["image_with_boxes"]
-                image_with_blur = cached_results["image_with_blur"]
-                st.success(f"**Classification Result (Cached):** {category}")
+                st.success(f"**Classification Result:** {category}")
             else:
                 with st.spinner("Classifying image..."):
                     classification_results = classification_model(image)
@@ -182,45 +180,42 @@ else:
                     st.success(f"**Classification Result:** {category}")
                     print(f"Inference information about file: {current_image_path}")
 
-                if category == 'porn' or category == 'hentai':
-                    with st.spinner("Detecting explicit regions..."):
-                        segmentation_results = segmentation_model(image, agnostic_nms=True, retina_masks=True)
+            _ = """ 
+                Do not cache segmentation results, it borks website
+                Pass to segmentation model only if images need blur, otherwise skip
+            """
 
-                    boxes = segmentation_results[0].boxes.xyxy.cpu().tolist()
-                    clss = segmentation_results[0].boxes.cls.cpu().tolist()
-                    confs = segmentation_results[0].boxes.conf.cpu().tolist()
+            if category == 'porn' or category == 'hentai':
+                with st.spinner("Detecting explicit regions..."):
+                    segmentation_results = segmentation_model(image, agnostic_nms=True, retina_masks=True)
 
-                    """
-                        Copy of the image for drawing segmentation masks
-                        Prevents segmentation mask's color being picked up during the blurring process, results in a clean blur
-                    """
-                    image_with_boxes = image.copy()
-                    image_with_blur = image.copy()
+                boxes = segmentation_results[0].boxes.xyxy.cpu().tolist()
+                clss = segmentation_results[0].boxes.cls.cpu().tolist()
+                confs = segmentation_results[0].boxes.conf.cpu().tolist()
 
-                    annotator = Annotator(image_with_boxes, line_width=2, example=segmentation_results[0].names)
+                _ = """
+                    Copy of the image for drawing segmentation masks.
+                    Prevents segmentation mask's color from being picked up during the blurring process, results in a clean blur.
+                """
+                image_with_boxes = image.copy()
+                image_with_blur = image.copy()
 
-                    for box, cls, conf in zip(boxes, clss, confs):
-                        class_name = segmentation_results[0].names[int(cls)]
-                        label = f"{class_name} ({conf:.2f})"
-                        annotator.box_label(box, color=colors(int(cls), True), label=label)
+                annotator = Annotator(image_with_boxes, line_width=2, example=segmentation_results[0].names)
 
-                    blur_ratio = st.slider("Blur Ratio", min_value=1, max_value=100, value=85)
+                for box, cls, conf in zip(boxes, clss, confs):
+                    class_name = segmentation_results[0].names[int(cls)]
+                    label = f"{class_name} ({conf:.2f})"
+                    annotator.box_label(box, color=colors(int(cls), True), label=label)
 
-                    # Blur explicit regions
-                    for box in boxes:
-                        obj = image_with_blur.crop((int(box[0]), int(box[1]), int(box[2]), int(box[3])))
-                        blur_obj = obj.filter(ImageFilter.GaussianBlur(radius=blur_ratio))
-                        if blur_obj.mode == 'RGBA':
-                            blur_obj = blur_obj.convert('RGB')
-                        image_with_blur.paste(blur_obj, (int(box[0]), int(box[1])))
+                blur_ratio = st.slider("Blur Ratio", min_value=1, max_value=100, value=85)
 
-                    # Cache the segmentations
-                    st.session_state.results_cache[current_image_path] = {
-                        "category": category,
-                        "segmentation_results": segmentation_results,
-                        "image_with_boxes": image_with_boxes,
-                        "image_with_blur": image_with_blur
-                    }
+                # Blur explicit regions
+                for box in boxes:
+                    obj = image_with_blur.crop((int(box[0]), int(box[1]), int(box[2]), int(box[3])))
+                    blur_obj = obj.filter(ImageFilter.GaussianBlur(radius=blur_ratio))
+                    if blur_obj.mode == 'RGBA':
+                        blur_obj = blur_obj.convert('RGB')
+                    image_with_blur.paste(blur_obj, (int(box[0]), int(box[1])))
 
             if category == 'porn' or category == 'hentai':
                 if st.checkbox("Blur explicit regions", True):
