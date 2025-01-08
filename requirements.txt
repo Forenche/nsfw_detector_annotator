@@ -1,4 +1,5 @@
 opencv_python==4.10.0.84
+opencv_python_headless==4.10.0.84
 Pillow==11.1.0
 pillow_heif==0.21.0
 streamlit==1.41.1
