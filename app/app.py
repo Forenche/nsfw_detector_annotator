@@ -40,7 +40,11 @@ if "image_index" not in st.session_state:
 # Initialize saved_image_paths in session state if it doesn't exist
 if "saved_image_paths" not in st.session_state:
     st.session_state.saved_image_paths = []
-    
+
+# Init session state for caching results
+if "results_cache" not in st.session_state:
+    st.session_state.results_cache = {}
+
 # Toggle between image and video mode
 on = st.toggle("Video mode")
 
@@ -123,10 +127,6 @@ else:
 
     if uploaded_files:
         current_uploaded_files = {file.name for file in uploaded_files}
-
-        # Init session state for caching results
-        if "results_cache" not in st.session_state:
-            st.session_state.results_cache = {}
             
         # Update saved_image_paths to remove deleted files
         st.session_state.saved_image_paths = [
@@ -141,12 +141,7 @@ else:
                 with open(file_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 st.session_state.saved_image_paths.append(file_path)
-
-        # Clean up cached results for deleted images
-        deleted_files = set(st.session_state.results_cache.keys()) - set(st.session_state.saved_image_paths)
-        for deleted_file in deleted_files:
-            del st.session_state.results_cache[deleted_file]
-
+        
         # Handle invalid image_index
         if st.session_state.image_index >= len(st.session_state.saved_image_paths):
             st.session_state.image_index = max(0, len(st.session_state.saved_image_paths) - 1)
@@ -172,8 +167,10 @@ else:
                 cached_results = st.session_state.results_cache[current_image_path]
                 category = cached_results["category"]
                 st.success(f"**Classification Result:** {category}")
+                print(f"Using cached results for {current_image_path}")
             else:
                 with st.spinner("Classifying image..."):
+                    print(f"No cached results found for {current_image_path}")
                     classification_results = classification_model(image)
                     category = classification_results[0].names[classification_results[0].probs.top1]
 
