@@ -10,13 +10,6 @@ import utils
 from utils import save_feedbacks, load_feedbacks
 from admin import admin_panel
 
-# Debug only
-os.system("ffmpeg -codecs > ffmpeg_codecs.txt")
-with open("ffmpeg_codecs.txt", "r") as file:
-    st.text(file.read())
-
-st.text(cv2.getBuildInformation())
-
 # Enable support for HEIC images
 register_heif_opener()
 
