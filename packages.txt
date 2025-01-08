@@ -1,4 +1,4 @@
 libgl1
 libglib2.0-0
 ffmpeg
-python3-opencv
+libavcodec-extra
