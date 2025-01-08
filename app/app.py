@@ -68,7 +68,7 @@ if on:
             temp_video_path = temp_file.name
 
         # Video writer
-        video_writer = cv2.VideoWriter(temp_video_path, cv2.VideoWriter_fourcc(*"avc1"), fps, (w, h))
+        video_writer = cv2.VideoWriter(temp_video_path, cv2.VideoWriter_fourcc(*"X264"), fps, (w, h))
 
         # Process video frame-by-frame
         progress_bar = st.progress(0)
