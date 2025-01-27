@@ -81,7 +81,7 @@ if on:
                 break
 
             # Perform segmentation on the frame
-            results = segmentation_model.predict(im0, imgsz=416, show=False, agnostic_nms=True, device='cpu')
+            results = segmentation_model.predict(im0, imgsz=416, show=False, agnostic_nms=True, device='cpu', verbose=False)
             boxes = results[0].boxes.xyxy.cpu().tolist()
             clss = results[0].boxes.cls.cpu().tolist()
             annotator = Annotator(im0, line_width=2, example=segmentation_model.model.names)
@@ -109,7 +109,7 @@ if on:
         # Display the processed video
         st.success("Video processing complete!")
         print('[DEBUG] Video processing  completed.')
-        col1, col2, col3 = st.columns([1, 2, 1])
+        _, col2, _ = st.columns([1, 2, 1])
         # Display the video in the middle column
         with col2:
             st.video(temp_video_path)
@@ -150,11 +150,11 @@ else:
         if st.session_state.saved_image_paths:
             current_image_path = st.session_state.saved_image_paths[st.session_state.image_index]
             image = Image.open(current_image_path)
-            left_co, cent_co, last_co = st.columns(3)
+            _, cent_co, _ = st.columns(3)
             with cent_co:
                 st.image(image, caption=f"Image {st.session_state.image_index + 1} of {len(st.session_state.saved_image_paths)}", width=500)
 
-            col1, col2, col3 = st.columns([1, 10, 1])
+            col1, _, col3 = st.columns([1, 10, 1])
             with col1:
                 if st.button("Previous") and st.session_state.image_index > 0:
                     st.session_state.image_index -= 1
@@ -171,7 +171,7 @@ else:
             else:
                 with st.spinner("Classifying image..."):
                     print(f"No cached results found for {current_image_path}")
-                    classification_results = classification_model(image)
+                    classification_results = classification_model(image, verbose=True)
                     category = classification_results[0].names[classification_results[0].probs.top1]
 
                     st.success(f"**Classification Result:** {category}")
@@ -184,7 +184,7 @@ else:
 
             if category == 'porn' or category == 'hentai':
                 with st.spinner("Detecting explicit regions..."):
-                    segmentation_results = segmentation_model(image, agnostic_nms=True, retina_masks=True)
+                    segmentation_results = segmentation_model(image, agnostic_nms=True, retina_masks=True, verbose=True)
 
                 boxes = segmentation_results[0].boxes.xyxy.cpu().tolist()
                 clss = segmentation_results[0].boxes.cls.cpu().tolist()
@@ -204,7 +204,7 @@ else:
                     label = f"{class_name} ({conf:.2f})"
                     annotator.box_label(box, color=colors(int(cls), True), label=label)
 
-                blur_ratio = st.slider("Blur Ratio", min_value=1, max_value=100, value=85)
+                blur_ratio = st.slider("Blur Ratio", min_value=0, max_value=100, value=85)
 
                 # Blur explicit regions
                 for box in boxes:
@@ -214,20 +214,19 @@ else:
                         blur_obj = blur_obj.convert('RGB')
                     image_with_blur.paste(blur_obj, (int(box[0]), int(box[1])))
 
-            if category == 'porn' or category == 'hentai':
-                if st.checkbox("Blur explicit regions", True):
-                    left_co, cent_co, last_co = st.columns(3)
+                blur_sensitive_regions = st.checkbox("Blur explicit regions", True)
+                _, cent_co, _ = st.columns(3)
+                if blur_sensitive_regions:
                     with cent_co:
                         st.image(image_with_blur, caption="Image with Blurred NSFW Regions", use_container_width=True)
                 else:
-                    left_co, cent_co, last_co = st.columns(3)
                     with cent_co:
                         st.image(image_with_boxes, caption="Image with Segmentation Masks", use_container_width=True)
         else:
             st.warning("No images to display.")
 
 st.markdown("---")
-st.markdown("ℹ️ **Instructions:** Upload an image or video to classify and detect explicit content. Use the slider to adjust the blur intensity.")
+st.markdown("ℹ️ **Instructions:** Upload image(s) or video to classify, detect and segment explicit regions in media. Use the slider to adjust the blur intensity for sensitive regions.")
 st.write("---")
 
 st.markdown("#### Feedback Form")
