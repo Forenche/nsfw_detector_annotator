@@ -54,7 +54,7 @@ nsfw-detector-annotator/
 ├── scripts/
 │   ├── train_classification.py
 │   └── train_segmentation.py
-├── images/
+├── assets/
 │   ├── classification/
 │   ├── confusion_matrix.png
 │   └── confusion_matrix_normalized.png
@@ -134,13 +134,13 @@ For the classification model:
 
 | Confusion Matrix       | Normalized Confusion Matrix       |
 |---------------------------------------|-----------------------------------|
-| ![Confusion Matrix](images/classification/confusion_matrix.png) | ![Normalized Confusion Matrix](images/classification/confusion_matrix_normalized.png) |
+| ![Confusion Matrix](assets/classification/confusion_matrix.png) | ![Normalized Confusion Matrix](assets/classification/confusion_matrix_normalized.png) |
 
 
 For the segmentation model:
 | Confusion Matrix       | Normalized Confusion Matrix       |
 |---------------------------------------|-----------------------------------|
-| ![Confusion Matrix](images/segmentation/confusion_matrix.png) | ![Normalized Confusion Matrix](images/segmentation/confusion_matrix_normalized.png) |
+| ![Confusion Matrix](assets/segmentation/confusion_matrix.png) | ![Normalized Confusion Matrix](assets/segmentation/confusion_matrix_normalized.png) |
 
 ---
 
