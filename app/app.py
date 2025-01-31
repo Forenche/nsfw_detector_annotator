@@ -152,15 +152,28 @@ else:
             image = Image.open(current_image_path)
             _, cent_co, _ = st.columns(3)
             with cent_co:
-                st.image(image, caption=f"Image {st.session_state.image_index + 1} of {len(st.session_state.saved_image_paths)}", width=500)
+                st.image(image, caption=f"Image {st.session_state.image_index + 1} of {len(st.session_state.saved_image_paths)}", use_container_width=True)
 
             col1, _, col3 = st.columns([1, 10, 1])
+
             with col1:
                 if st.button("Previous") and st.session_state.image_index > 0:
                     st.session_state.image_index -= 1
+                    _ = """
+                            Force re-run the script as streamlit's UI re-rendering on session state change is slightly buggy.
+                            This fixes the issue where the user to has to click "Previous" button twice on the last image
+                            to cycle through the classification and segmentation results respectively.
+                        """
+                    st.rerun()
             with col3:
                 if st.button("Next") and st.session_state.image_index < len(st.session_state.saved_image_paths) - 1:
                     st.session_state.image_index += 1
+                    _ = """
+                            Force re-run the script as streamlit's UI re-rendering on session state change is slightly buggy.
+                            This fixes the issue where the user to has to click "Next" button twice on the first image
+                            to cycle through the classification and segmentation results respectively.
+                        """
+                    st.rerun()
 
             # Display cached results if present
             if current_image_path in st.session_state.results_cache:
@@ -194,9 +207,8 @@ else:
                     Copy of the image for drawing segmentation masks.
                     Prevents segmentation mask's color from being picked up during the blurring process, results in a clean blur.
                 """
-                image_with_boxes = image.copy()
-                image_with_blur = image.copy()
-
+                image_with_blur = image_with_boxes = image.copy()
+                
                 annotator = Annotator(image_with_boxes, line_width=2, example=segmentation_results[0].names)
 
                 for box, cls, conf in zip(boxes, clss, confs):
