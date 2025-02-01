@@ -9,6 +9,8 @@ from pillow_heif import register_heif_opener
 import utils
 from utils import save_feedbacks, load_feedbacks
 from admin import admin_panel
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 # Enable support for HEIC images
 register_heif_opener()
@@ -47,6 +49,15 @@ if "results_cache" not in st.session_state:
 
 # Toggle between image and video mode
 on = st.toggle("Video mode")
+
+def classify_image(image):
+    results = classification_model(image, verbose=True)
+    category = results[0].names[results[0].probs.top1]
+    return category
+
+def segment_image(image):
+    results = segmentation_model(image, agnostic_nms=True, retina_masks=True, verbose=True)
+    return results
 
 if on:
     st.write("Model will segment explicit regions in videos.")
@@ -184,10 +195,11 @@ else:
             else:
                 with st.spinner("Classifying image..."):
                     print(f"No cached results found for {current_image_path}")
-                    classification_results = classification_model(image, verbose=True)
-                    category = classification_results[0].names[classification_results[0].probs.top1]
+                    with ThreadPoolExecutor() as executor:
+                        future = executor.submit(classify_image, image)
+                        category = future.result()
+                        st.success(f"**Classification Result:** {category}")
 
-                    st.success(f"**Classification Result:** {category}")
                     print(f"[INFO] Inference information about file: {current_image_path}")
 
             _ = """ 
@@ -197,7 +209,10 @@ else:
 
             if category == 'porn' or category == 'hentai':
                 with st.spinner("Detecting explicit regions..."):
-                    segmentation_results = segmentation_model(image, agnostic_nms=True, retina_masks=True, verbose=True)
+                    segmentation_results = []
+                    with ThreadPoolExecutor() as executor:
+                        future = executor.submit(segment_image, image)
+                        segmentation_results = future.result()
 
                 boxes = segmentation_results[0].boxes.xyxy.cpu().tolist()
                 clss = segmentation_results[0].boxes.cls.cpu().tolist()
@@ -207,7 +222,8 @@ else:
                     Copy of the image for drawing segmentation masks.
                     Prevents segmentation mask's color from being picked up during the blurring process, results in a clean blur.
                 """
-                image_with_blur = image_with_boxes = image.copy()
+                image_with_blur = image.copy()
+                image_with_boxes = image.copy()
                 
                 annotator = Annotator(image_with_boxes, line_width=2, example=segmentation_results[0].names)
 
@@ -259,12 +275,12 @@ with st.form(key='feedback_form', clear_on_submit=True):
             feedbacks = load_feedbacks()
             feedbacks.append(new_feedback)
             save_feedbacks(feedbacks)
-            st.success('Thanks for your feedback!')
+            st.success('Thank you for your feedback!')
         else:
-            st.warning('Please fill out all fields.')
+            st.warning('Please fill out all the fields.')
 
 # Call the admin panel
-admin_panel()
+asyncio.run(admin_panel())
 
 # A small button to link to the Github repo
 st.write("---")

@@ -54,7 +54,7 @@ def download_all_data():
             if delete_feedback_json():
                 st.success("Feedback JSON file has been deleted.")
 
-def admin_panel():
+async def admin_panel():
     st.markdown("---")
     st.markdown("#### Admin Panel")
 
