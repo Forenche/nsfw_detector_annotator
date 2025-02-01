@@ -152,6 +152,21 @@ else:
                 with open(file_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 st.session_state.saved_image_paths.append(file_path)
+
+        # Classify first 25 images in a batch upfront
+        count = 0
+        with st.spinner("Classifying all uploaded images..."):
+            for file_path in st.session_state.saved_image_paths:
+                if count > 25:
+                    break
+
+                if file_path not in st.session_state.results_cache:  # Avoid reprocessing
+                    image = Image.open(file_path)
+                    with ThreadPoolExecutor() as executor:
+                        future = executor.submit(classify_image, image)
+                        category = future.result()
+                        st.session_state.results_cache[file_path] = {"category": category}
+                    count += 1
         
         # Handle invalid image_index
         if st.session_state.image_index >= len(st.session_state.saved_image_paths):
