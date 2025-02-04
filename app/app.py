@@ -50,14 +50,27 @@ if "results_cache" not in st.session_state:
 # Toggle between image and video mode
 on = st.toggle("Video mode")
 
+# Fetch model names preemptively for easy access
+names = classification_model.names
+
 def classify_image(image):
     results = classification_model(image, verbose=True)
-    category = results[0].names[results[0].probs.top1]
+    category = results[0].probs.top5
     return category
 
 def segment_image(image):
     results = segmentation_model(image, agnostic_nms=True, retina_masks=True, verbose=True)
     return results
+
+def override_cls(cat, seg):
+    img_is_explicit = False if seg[0].boxes.cls.cpu().tolist() == [] else True
+    cat_override = names[cat[0]]
+    if img_is_explicit and not cat[0] in [1, 3]:
+        if cat[1] == 1:
+            cat_override = names[1]
+        else:
+            cat_override = names[3]
+    return cat_override
 
 if on:
     st.write("Model will segment explicit regions in videos.")
@@ -119,7 +132,7 @@ if on:
 
         # Display the processed video
         st.success("Video processing complete!")
-        print('[DEBUG] Video processing  completed.')
+        print('[DEBUG] Video processing completed.')
         _, col2, _ = st.columns([1, 2, 1])
         # Display the video in the middle column
         with col2:
@@ -152,7 +165,7 @@ else:
                 with open(file_path, "wb") as f:
                     f.write(uploaded_file.getbuffer())
                 st.session_state.saved_image_paths.append(file_path)
-        
+
         # Handle invalid image_index
         if st.session_state.image_index >= len(st.session_state.saved_image_paths):
             st.session_state.image_index = max(0, len(st.session_state.saved_image_paths) - 1)
@@ -186,33 +199,46 @@ else:
                         """
                     st.rerun()
 
+            _ = """
+                Fetch segmentation results beforehand.
+                If the classification model has high porn/hentai conf values in the list and segmentation model
+                detects any explicit regions, update the classification result as either porn or hentai.
+                """
+            segmentation_results = []
+
+            with st.spinner("Detecting explicit regions..."):
+                with ThreadPoolExecutor() as executor:
+                    future = executor.submit(segment_image, image)
+                    segmentation_results = future.result()
+
+            # Actual logic for determining to reducing false negatives, pretty simple and clever, right? ;)
+            img_is_explicit = False if segmentation_results[0].boxes.cls.cpu().tolist() == [] else True
+
             # Display cached results if present
             if current_image_path in st.session_state.results_cache:
                 cached_results = st.session_state.results_cache[current_image_path]
                 category = cached_results["category"]
                 st.success(f"**Classification Result:** {category}")
-                print(f"Using cached results for {current_image_path}")
+                print(f"[DEBUG] Using cached results for {current_image_path}")
+
             else:
+
                 with st.spinner("Classifying image..."):
-                    print(f"No cached results found for {current_image_path}")
+                    print(f"[DEBUG] No cached results found for {current_image_path}")
                     with ThreadPoolExecutor() as executor:
                         future = executor.submit(classify_image, image)
                         category = future.result()
-                        st.success(f"**Classification Result:** {category}")
-
+                        future = executor.submit(override_cls, category, segmentation_results)
+                        result = future.result()
+                        st.success(f"**Classification Result:** {result}")
                     print(f"[INFO] Inference information about file: {current_image_path}")
 
-            _ = """ 
-                Do not cache segmentation results, it borks website
-                Pass to segmentation model only if images need blur, otherwise skip
+            _ = """
+                Do not cache segmentation results, it borks website.
+                Pass to segmentation model only if images need blur, otherwise skip.
             """
 
-            if category == 'porn' or category == 'hentai':
-                with st.spinner("Detecting explicit regions..."):
-                    segmentation_results = []
-                    with ThreadPoolExecutor() as executor:
-                        future = executor.submit(segment_image, image)
-                        segmentation_results = future.result()
+            if (category == 'porn' or category == 'hentai') or img_is_explicit:
 
                 boxes = segmentation_results[0].boxes.xyxy.cpu().tolist()
                 clss = segmentation_results[0].boxes.cls.cpu().tolist()
