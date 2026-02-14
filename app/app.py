@@ -163,7 +163,7 @@ else:
             image = Image.open(current_image_path)
             _, cent_co, _ = st.columns(3)
             with cent_co:
-                st.image(image, caption=f"Image {st.session_state.image_index + 1} of {len(st.session_state.saved_image_paths)}", use_container_width=True)
+                st.image(image, caption=f"Image {st.session_state.image_index + 1} of {len(st.session_state.saved_image_paths)}", width="stretch")
 
             col1, _, col3 = st.columns([1, 10, 1])
 
@@ -246,10 +246,10 @@ else:
                 _, cent_co, _ = st.columns(3)
                 if blur_sensitive_regions:
                     with cent_co:
-                        st.image(image_with_blur, caption="Image with Blurred NSFW Regions", use_container_width=True)
+                        st.image(image_with_blur, caption="Image with Blurred NSFW Regions", width="stretch")
                 else:
                     with cent_co:
-                        st.image(image_with_boxes, caption="Image with Segmentation Masks", use_container_width=True)
+                        st.image(image_with_boxes, caption="Image with Segmentation Masks", width="stretch")
         else:
             st.warning("No images to display.")
 
@@ -284,5 +284,5 @@ asyncio.run(admin_panel())
 
 # A small button to link to the Github repo
 st.write("---")
-st.markdown("ℹ️ Please note that I collect uploaded images and videos for further analysis and may be used for re-training. However, the user remains anonymous.")
+st.markdown("ℹ️ Please note that I collect uploaded images and videos to re-train my models. However, the user remains anonymous.")
 st.link_button("🐙 View on GitHub", "https://github.com/Forenche/nsfw_detector_annotator")
